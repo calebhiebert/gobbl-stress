@@ -23,5 +23,6 @@ type SingleRequestResult struct {
 // MessengerConfig holds test configuration specific to facebook messenger
 type MessengerConfig struct {
 	PSIDList []string `json:"psids"`
+	Messages []string `json:"messages"`
 	Endpoint string   `json:"endpoint"`
 }

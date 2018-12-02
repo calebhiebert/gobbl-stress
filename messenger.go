@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -12,56 +13,32 @@ import (
 )
 
 var client *http.Client
-var startTime int64
 
 // TMessenger starts the test for a facebook messenger bot
-func TMessenger(config *Config) {
+func TMessenger(config *Config, results chan *SingleRequestResult) {
 	spacing := time.Duration(int(config.TestDuration) / config.Requests)
-	resultChan := make(chan *SingleRequestResult)
 	done := make(chan bool)
 	client = &http.Client{
 		Timeout: 30 * time.Second,
 	}
 
-	go readResults(resultChan, config.Requests, done)
+	go readResults(results, config.Requests, done)
 
-	fmt.Printf("Starting test with %.1f/sec\n", float64(config.Requests)/float64(config.TestDuration*time.Second))
+	fmt.Printf("Starting test with %d requests per second\n", config.Requests/int(config.TestDuration.Seconds()))
 	startTime = time.Now().Unix()
 
 	for i := 0; i < config.Requests; i++ {
 		time.Sleep(spacing)
-		go doRequest(config, resultChan)
+		go doRequest(config, results)
 	}
 
 	<-done
 }
 
-// readResults will wait for the specified number of results and compile results
-func readResults(resultsChan chan *SingleRequestResult, expectedResults int, done chan bool) {
-	totalResponseTime := 0
-
-	for i := 0; i < expectedResults; i++ {
-		result := <-resultsChan
-
-		totalResponseTime += int(result.TimeTaken)
-
-		if !result.WasSuccessful {
-			fmt.Printf("\rERR %d - %v\n", i, result.ErrorMessage)
-		}
-
-		fmt.Printf("\rRequest %d/%d - %.2f ms - %d",
-			i+1, expectedResults,
-			(float64(totalResponseTime)/float64(i))/float64(time.Millisecond),
-			time.Now().Unix()-startTime)
-	}
-
-	done <- true
-}
-
 // doRequest will make a single messenger request
 func doRequest(config *Config, res chan *SingleRequestResult) {
 
-	req := generateMessengerRequest()
+	req := generateMessengerRequest(config)
 	jsonBytes, err := json.Marshal(&req)
 	if err != nil {
 		panic(err)
@@ -80,7 +57,7 @@ func doRequest(config *Config, res chan *SingleRequestResult) {
 	}
 }
 
-func generateMessengerRequest() fb.WebhookRequest {
+func generateMessengerRequest(config *Config) fb.WebhookRequest {
 	mid, _ := gonanoid.Nanoid(64)
 
 	return fb.WebhookRequest{
@@ -92,7 +69,7 @@ func generateMessengerRequest() fb.WebhookRequest {
 				Messaging: []fb.MessagingItem{
 					fb.MessagingItem{
 						Sender: fb.User{
-							ID: "123456789",
+							ID: config.Messenger.PSIDList[rand.Intn(len(config.Messenger.PSIDList))],
 						},
 
 						Recipient: fb.User{
@@ -104,7 +81,7 @@ func generateMessengerRequest() fb.WebhookRequest {
 						Message: fb.WHMessage{
 							MID:  mid,
 							Seq:  1,
-							Text: "example text",
+							Text: config.Messenger.Messages[rand.Intn(len(config.Messenger.Messages))],
 						},
 					},
 				},
