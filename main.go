@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"sync"
 	"time"
 )
@@ -18,14 +20,16 @@ func main() {
 	resultsCache = []*SingleRequestResult{}
 	resultsCacheMutex = &sync.Mutex{}
 
-	conf := Config{
-		TestDuration: 15 * time.Second,
-		Requests:     3500,
-		Messenger: &MessengerConfig{
-			Endpoint: "http://localhost:8080/webhook",
-			Messages: []string{"GET_STARTED", "TRIG_RANDOM_DEAL"},
-			PSIDList: []string{"123456789"},
-		},
+	b, err := ioutil.ReadFile("./stress.json")
+	if err != nil {
+		panic(err)
+	}
+
+	var conf Config
+
+	err = json.Unmarshal(b, &conf)
+	if err != nil {
+		panic(err)
 	}
 
 	results := make(chan *SingleRequestResult)

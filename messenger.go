@@ -16,6 +16,12 @@ var client *http.Client
 
 // TMessenger starts the test for a facebook messenger bot
 func TMessenger(config *Config, results chan *SingleRequestResult) {
+	if config.Messenger.Messages == nil || len(config.Messenger.Messages) == 0 {
+		panic("must specify at least one message")
+	} else if config.Messenger.PSIDList == nil || len(config.Messenger.PSIDList) == 0 {
+		panic("must specify at least one psid")
+	}
+
 	spacing := time.Duration(int(config.TestDuration) / config.Requests)
 	done := make(chan bool)
 	client = &http.Client{
